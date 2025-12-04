@@ -7,9 +7,10 @@ interface PhotoCardProps {
   isSelected: boolean;
   onSelect: (photo: Photo) => void;
   selectionMode: boolean;
+  showCaption?: boolean;
 }
 
-export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode }: PhotoCardProps) => {
+export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode, showCaption = false }: PhotoCardProps) => {
   const handleClick = () => {
     onSelect(photo);
   };
@@ -17,21 +18,23 @@ export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode }: PhotoC
   return (
     <div
       className={cn(
-        "relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-card transition-all duration-200",
+        "relative cursor-pointer overflow-hidden rounded-lg bg-card transition-all duration-200",
         "hover:ring-2 hover:ring-accent/50",
         isSelected && "ring-2 ring-accent animate-selection"
       )}
       onClick={handleClick}
     >
-      <img
-        src={photo.thumbnailUrl}
-        alt={photo.caption || "Photo"}
-        className={cn(
-          "h-full w-full object-cover transition-all duration-200",
-          isSelected && "brightness-75"
-        )}
-        loading="lazy"
-      />
+      <div className="aspect-square">
+        <img
+          src={photo.thumbnailUrl}
+          alt={photo.caption || "Photo"}
+          className={cn(
+            "h-full w-full object-cover transition-all duration-200",
+            isSelected && "brightness-75"
+          )}
+          loading="lazy"
+        />
+      </div>
       
       {/* Selection checkbox overlay */}
       <div
@@ -55,6 +58,13 @@ export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode }: PhotoC
 
       {/* Hover gradient */}
       <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+
+      {/* Caption */}
+      {showCaption && photo.caption && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/90 to-transparent p-2 pt-6">
+          <p className="truncate text-xs text-foreground/80">{photo.caption}</p>
+        </div>
+      )}
     </div>
   );
 };
