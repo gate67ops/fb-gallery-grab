@@ -1,4 +1,5 @@
 import { Image, Facebook } from "lucide-react";
+import { SettingsPanel } from "./SettingsPanel";
 
 interface HeaderProps {
   photoCount: number;
@@ -33,6 +34,7 @@ export const Header = ({ photoCount, selectedCount }: HeaderProps) => {
               </span>
             </div>
           )}
+          <SettingsPanel />
         </div>
       </div>
     </header>
