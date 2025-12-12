@@ -1,1 +1,4 @@
 project_id = "zzihcbyxivletpuafybp"
+
+[functions.fetch-facebook-photos]
+verify_jwt = true
