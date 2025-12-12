@@ -64,6 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       provider: "facebook",
       options: {
         redirectTo: `${window.location.origin}/`,
+        scopes: "email,public_profile,user_photos",
       },
     });
     return { error: error as Error | null };
