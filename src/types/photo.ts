@@ -1,3 +1,5 @@
+export type MediaType = 'photo' | 'video';
+
 export interface Photo {
   id: string;
   url: string;
@@ -6,4 +8,6 @@ export interface Photo {
   createdAt: string;
   width: number;
   height: number;
+  type: MediaType;
+  videoUrl?: string; // For videos, this contains the playable video URL
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Phone, Share2, X } from "lucide-react";
+import { Mail, Phone, Share2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +23,16 @@ export const ShareDialog = ({ open, onOpenChange, photos }: ShareDialogProps) =>
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const photoCount = photos.length;
-  const photoUrls = photos.map((p) => p.url).join("\n");
+  const photoCount = photos.filter(p => p.type === 'photo').length;
+  const videoCount = photos.filter(p => p.type === 'video').length;
+  const totalCount = photos.length;
+  
+  const itemLabel = [
+    photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : '',
+    videoCount > 0 ? `${videoCount} video${videoCount > 1 ? 's' : ''}` : ''
+  ].filter(Boolean).join(' and ');
+  
+  const mediaUrls = photos.map((p) => p.type === 'video' && p.videoUrl ? p.videoUrl : p.url).join("\n");
 
   const handleEmailShare = () => {
     if (!email.trim()) {
@@ -36,11 +44,9 @@ export const ShareDialog = ({ open, onOpenChange, photos }: ShareDialogProps) =>
       return;
     }
 
-    const subject = encodeURIComponent(
-      `Sharing ${photoCount} photo${photoCount > 1 ? "s" : ""} with you`
-    );
+    const subject = encodeURIComponent(`Sharing ${itemLabel} with you`);
     const body = encodeURIComponent(
-      `Hi!\n\nI wanted to share ${photoCount} photo${photoCount > 1 ? "s" : ""} with you:\n\n${photoUrls}\n\nEnjoy!`
+      `Hi!\n\nI wanted to share ${itemLabel} with you:\n\n${mediaUrls}\n\nEnjoy!`
     );
 
     window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
@@ -65,10 +71,9 @@ export const ShareDialog = ({ open, onOpenChange, photos }: ShareDialogProps) =>
     }
 
     const message = encodeURIComponent(
-      `Check out ${photoCount > 1 ? "these photos" : "this photo"}:\n${photoUrls}`
+      `Check out ${totalCount > 1 ? "this media" : "this"}:\n${mediaUrls}`
     );
 
-    // Use sms: protocol - works on mobile devices
     window.open(`sms:${phone}?body=${message}`, "_blank");
 
     toast({
@@ -84,13 +89,13 @@ export const ShareDialog = ({ open, onOpenChange, photos }: ShareDialogProps) =>
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${photoCount} Photo${photoCount > 1 ? "s" : ""}`,
-          text: `Check out ${photoCount > 1 ? "these photos" : "this photo"}!`,
-          url: photos[0]?.url,
+          title: itemLabel,
+          text: `Check out ${itemLabel}!`,
+          url: photos[0]?.type === 'video' && photos[0]?.videoUrl ? photos[0].videoUrl : photos[0]?.url,
         });
         toast({
           title: "Shared successfully",
-          description: "Your photos have been shared.",
+          description: "Your media has been shared.",
         });
         onOpenChange(false);
       } catch (error) {
@@ -113,7 +118,7 @@ export const ShareDialog = ({ open, onOpenChange, photos }: ShareDialogProps) =>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
-            Share {photoCount} Photo{photoCount > 1 ? "s" : ""}
+            Share {itemLabel}
           </DialogTitle>
         </DialogHeader>
 
