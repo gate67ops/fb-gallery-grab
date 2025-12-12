@@ -88,6 +88,7 @@ const Index = () => {
         <SelectionToolbar
           selectedCount={selectedCount}
           totalCount={photos.length}
+          selectedPhotos={getSelectedPhotos()}
           onSelectAll={selectAll}
           onDeselectAll={deselectAll}
           onDownload={handleDownload}
