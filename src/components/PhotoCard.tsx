@@ -1,5 +1,5 @@
 import { Photo } from "@/types/photo";
-import { Check } from "lucide-react";
+import { Check, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PhotoCardProps {
@@ -15,6 +15,8 @@ export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode, showCapt
     onSelect(photo);
   };
 
+  const isVideo = photo.type === 'video';
+
   return (
     <div
       className={cn(
@@ -27,7 +29,7 @@ export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode, showCapt
       <div className="aspect-square">
         <img
           src={photo.thumbnailUrl}
-          alt={photo.caption || "Photo"}
+          alt={photo.caption || (isVideo ? "Video" : "Photo")}
           className={cn(
             "h-full w-full object-cover transition-all duration-200",
             isSelected && "brightness-75"
@@ -35,6 +37,13 @@ export const PhotoCard = ({ photo, isSelected, onSelect, selectionMode, showCapt
           loading="lazy"
         />
       </div>
+      
+      {/* Video indicator */}
+      {isVideo && (
+        <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm">
+          <Play className="h-4 w-4 text-foreground fill-foreground" />
+        </div>
+      )}
       
       {/* Selection checkbox overlay */}
       <div

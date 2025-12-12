@@ -21,8 +21,28 @@ interface FacebookPhoto {
   }>;
 }
 
+interface FacebookVideo {
+  id: string;
+  source: string;
+  picture: string;
+  created_time: string;
+  description?: string;
+  length: number;
+}
+
 interface FacebookPhotosResponse {
   data: FacebookPhoto[];
+  paging?: {
+    cursors: {
+      before: string;
+      after: string;
+    };
+    next?: string;
+  };
+}
+
+interface FacebookVideosResponse {
+  data: FacebookVideo[];
   paging?: {
     cursors: {
       before: string;
@@ -98,29 +118,41 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Fetching photos from Facebook Graph API...");
+    console.log("Fetching photos and videos from Facebook Graph API...");
 
-    // Fetch photos from Facebook Graph API
     const limit = body.limit || 50;
     const after = body.after || "";
+    const halfLimit = Math.ceil(limit / 2);
     
-    const graphUrl = new URL("https://graph.facebook.com/v18.0/me/photos");
-    graphUrl.searchParams.set("type", "uploaded");
-    graphUrl.searchParams.set("fields", "id,source,width,height,created_time,name,images");
-    graphUrl.searchParams.set("limit", limit.toString());
-    graphUrl.searchParams.set("access_token", providerToken);
-    
+    // Fetch photos
+    const photosUrl = new URL("https://graph.facebook.com/v18.0/me/photos");
+    photosUrl.searchParams.set("type", "uploaded");
+    photosUrl.searchParams.set("fields", "id,source,width,height,created_time,name,images");
+    photosUrl.searchParams.set("limit", halfLimit.toString());
+    photosUrl.searchParams.set("access_token", providerToken);
     if (after) {
-      graphUrl.searchParams.set("after", after);
+      photosUrl.searchParams.set("after", after);
     }
 
-    const fbResponse = await fetch(graphUrl.toString());
+    // Fetch videos
+    const videosUrl = new URL("https://graph.facebook.com/v18.0/me/videos");
+    videosUrl.searchParams.set("type", "uploaded");
+    videosUrl.searchParams.set("fields", "id,source,picture,created_time,description,length");
+    videosUrl.searchParams.set("limit", halfLimit.toString());
+    videosUrl.searchParams.set("access_token", providerToken);
+    if (after) {
+      videosUrl.searchParams.set("after", after);
+    }
+
+    const [photosResponse, videosResponse] = await Promise.all([
+      fetch(photosUrl.toString()),
+      fetch(videosUrl.toString())
+    ]);
     
-    if (!fbResponse.ok) {
-      const errorData = await fbResponse.json();
-      console.error("Facebook API error:", errorData);
+    if (!photosResponse.ok) {
+      const errorData = await photosResponse.json();
+      console.error("Facebook Photos API error:", errorData);
       
-      // Check if token is expired
       if (errorData.error?.code === 190) {
         return new Response(
           JSON.stringify({ 
@@ -133,21 +165,19 @@ const handler = async (req: Request): Promise<Response> => {
       
       return new Response(
         JSON.stringify({ error: errorData.error?.message || "Failed to fetch photos from Facebook" }),
-        { status: fbResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: photosResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const fbData: FacebookPhotosResponse = await fbResponse.json();
-    console.log(`Successfully fetched ${fbData.data.length} photos from Facebook`);
+    const photosData: FacebookPhotosResponse = await photosResponse.json();
+    console.log(`Successfully fetched ${photosData.data.length} photos from Facebook`);
 
-    // Transform Facebook photos to our Photo format
-    const photos = fbData.data.map((photo) => {
-      // Get the best quality image (largest)
+    // Transform photos
+    const photos = photosData.data.map((photo) => {
       const bestImage = photo.images?.reduce((prev, current) => 
         (prev.width * prev.height > current.width * current.height) ? prev : current
       ) || { source: photo.source, width: photo.width, height: photo.height };
 
-      // Get a thumbnail (around 200px wide)
       const thumbnail = photo.images?.find(img => img.width >= 150 && img.width <= 300) 
         || photo.images?.[photo.images.length - 1] 
         || { source: photo.source };
@@ -160,14 +190,52 @@ const handler = async (req: Request): Promise<Response> => {
         createdAt: photo.created_time,
         width: bestImage.width,
         height: bestImage.height,
+        type: 'photo' as const,
       };
     });
 
+    // Transform videos (handle potential errors gracefully)
+    let videos: Array<{
+      id: string;
+      url: string;
+      thumbnailUrl: string;
+      caption?: string;
+      createdAt: string;
+      width: number;
+      height: number;
+      type: 'video';
+      videoUrl: string;
+    }> = [];
+
+    if (videosResponse.ok) {
+      const videosData: FacebookVideosResponse = await videosResponse.json();
+      console.log(`Successfully fetched ${videosData.data.length} videos from Facebook`);
+      
+      videos = videosData.data.map((video) => ({
+        id: video.id,
+        url: video.picture,
+        thumbnailUrl: video.picture,
+        caption: video.description || undefined,
+        createdAt: video.created_time,
+        width: 1280, // Default video dimensions
+        height: 720,
+        type: 'video' as const,
+        videoUrl: video.source,
+      }));
+    } else {
+      console.log("Videos endpoint returned error, continuing with photos only");
+    }
+
+    // Combine and sort by date
+    const allMedia = [...photos, ...videos].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
     return new Response(
       JSON.stringify({
-        photos,
-        paging: fbData.paging,
-        hasMore: !!fbData.paging?.next,
+        photos: allMedia,
+        paging: photosData.paging,
+        hasMore: !!photosData.paging?.next,
       }),
       {
         status: 200,

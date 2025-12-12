@@ -4,59 +4,80 @@ import { saveAs } from "file-saver";
 import { Photo } from "@/types/photo";
 import { toast } from "@/hooks/use-toast";
 
+const getFileExtension = (media: Photo): string => {
+  if (media.type === 'video') return 'mp4';
+  return 'jpg';
+};
+
+const getMediaUrl = (media: Photo): string => {
+  return media.type === 'video' && media.videoUrl ? media.videoUrl : media.url;
+};
+
 export const usePhotoDownload = () => {
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const downloadPhotos = useCallback(async (photos: Photo[]) => {
-    if (photos.length === 0) return;
+  const downloadPhotos = useCallback(async (items: Photo[]) => {
+    if (items.length === 0) return;
 
     setIsDownloading(true);
     
+    const photoCount = items.filter(i => i.type === 'photo').length;
+    const videoCount = items.filter(i => i.type === 'video').length;
+    const itemLabel = [
+      photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : '',
+      videoCount > 0 ? `${videoCount} video${videoCount > 1 ? 's' : ''}` : ''
+    ].filter(Boolean).join(' and ');
+    
     try {
-      if (photos.length === 1) {
-        // Single photo - download directly
-        const response = await fetch(photos[0].url);
+      if (items.length === 1) {
+        // Single item - download directly
+        const item = items[0];
+        const url = getMediaUrl(item);
+        const ext = getFileExtension(item);
+        const response = await fetch(url);
         const blob = await response.blob();
-        saveAs(blob, `photo-${photos[0].id}.jpg`);
+        saveAs(blob, `${item.type}-${item.id}.${ext}`);
         toast({
           title: "Download complete",
-          description: "Your photo has been downloaded.",
+          description: `Your ${item.type} has been downloaded.`,
         });
       } else {
-        // Multiple photos - create zip
+        // Multiple items - create zip
         const zip = new JSZip();
-        const folder = zip.folder("facebook-photos");
+        const folder = zip.folder("facebook-media");
 
         toast({
           title: "Preparing download",
-          description: `Downloading ${photos.length} photos...`,
+          description: `Downloading ${itemLabel}...`,
         });
 
-        const downloadPromises = photos.map(async (photo, index) => {
+        const downloadPromises = items.map(async (item, index) => {
           try {
-            const response = await fetch(photo.url);
+            const url = getMediaUrl(item);
+            const ext = getFileExtension(item);
+            const response = await fetch(url);
             const blob = await response.blob();
-            folder?.file(`photo-${index + 1}.jpg`, blob);
+            folder?.file(`${item.type}-${index + 1}.${ext}`, blob);
           } catch (error) {
-            console.error(`Failed to download photo ${photo.id}:`, error);
+            console.error(`Failed to download ${item.type} ${item.id}:`, error);
           }
         });
 
         await Promise.all(downloadPromises);
 
         const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, `facebook-photos-${Date.now()}.zip`);
+        saveAs(content, `facebook-media-${Date.now()}.zip`);
 
         toast({
           title: "Download complete",
-          description: `${photos.length} photos have been downloaded.`,
+          description: `${itemLabel} downloaded.`,
         });
       }
     } catch (error) {
       console.error("Download failed:", error);
       toast({
         title: "Download failed",
-        description: "There was an error downloading your photos.",
+        description: "There was an error downloading your media.",
         variant: "destructive",
       });
     } finally {
