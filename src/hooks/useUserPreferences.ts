@@ -51,7 +51,11 @@ export const useUserPreferences = () => {
   };
 
   const updatePreferences = async (updates: Partial<Omit<UserPreferences, "id" | "user_id">>) => {
-    if (!user || !preferences) return;
+    if (!user) return false;
+
+    // Optimistically update local state first
+    const currentPrefs = preferences || { ...defaultPreferences, id: "", user_id: user.id } as UserPreferences;
+    setPreferences({ ...currentPrefs, ...updates });
 
     const { error } = await supabase
       .from("user_preferences")
@@ -60,10 +64,11 @@ export const useUserPreferences = () => {
 
     if (error) {
       console.error("Error updating preferences:", error);
+      // Revert on error
+      setPreferences(currentPrefs);
       return false;
     }
 
-    setPreferences({ ...preferences, ...updates });
     return true;
   };
 
