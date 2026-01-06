@@ -2,3 +2,6 @@ project_id = "zzihcbyxivletpuafybp"
 
 [functions.fetch-facebook-photos]
 verify_jwt = true
+
+[functions.facebook-oauth-callback]
+verify_jwt = false

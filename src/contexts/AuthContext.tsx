@@ -61,14 +61,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithFacebook = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "facebook",
-      options: {
-        redirectTo: `${window.location.origin}/`,
-        scopes: "email,public_profile,user_photos,user_videos",
-      },
-    });
-    return { error: error as Error | null };
+    // Custom Facebook OAuth flow - redirect to Facebook directly
+    const FACEBOOK_APP_ID = "680938527683498"; // Your Facebook App ID
+    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
+    const scope = encodeURIComponent("email,public_profile,user_photos,user_videos");
+    
+    const facebookAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+    
+    window.location.href = facebookAuthUrl;
+    return { error: null };
   };
 
   const resetPassword = async (email: string) => {

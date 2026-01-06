@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      facebook_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string | null
+          facebook_user_id: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at?: string | null
+          facebook_user_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string | null
+          facebook_user_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           created_at: string
