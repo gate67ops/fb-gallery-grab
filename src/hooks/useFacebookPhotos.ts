@@ -15,7 +15,7 @@ interface UseFacebookPhotosReturn {
 }
 
 export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
   const [needsReauth, setNeedsReauth] = useState(false);
 
   const fetchPhotos = useCallback(async () => {
-    if (!session) {
+    if (!session || !user) {
       setError("Please sign in to view your photos");
       return;
     }
@@ -34,11 +34,23 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
     setNeedsReauth(false);
 
     try {
-      const providerToken = session.provider_token;
+      // First, get the Facebook token from our database
+      const { data: tokenData, error: tokenError } = await supabase
+        .from("facebook_tokens")
+        .select("access_token, expires_at")
+        .eq("user_id", user.id)
+        .single();
 
-      if (!providerToken) {
+      if (tokenError || !tokenData) {
         setNeedsReauth(true);
-        setError("Please sign in with Facebook to access your photos");
+        setError("Please connect your Facebook account to access your photos");
+        return;
+      }
+
+      // Check if token is expired
+      if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+        setNeedsReauth(true);
+        setError("Your Facebook session has expired. Please sign in again.");
         return;
       }
 
@@ -46,7 +58,7 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
         "fetch-facebook-photos",
         {
           body: {
-            provider_token: providerToken,
+            provider_token: tokenData.access_token,
             limit: 50,
           },
         }
@@ -84,17 +96,22 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, user]);
 
   const loadMore = useCallback(async () => {
-    if (!session || !afterCursor || isLoading) return;
+    if (!session || !user || !afterCursor || isLoading) return;
 
     setIsLoading(true);
 
     try {
-      const providerToken = session.provider_token;
+      // Get the Facebook token from our database
+      const { data: tokenData, error: tokenError } = await supabase
+        .from("facebook_tokens")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .single();
 
-      if (!providerToken) {
+      if (tokenError || !tokenData) {
         setNeedsReauth(true);
         return;
       }
@@ -103,7 +120,7 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
         "fetch-facebook-photos",
         {
           body: {
-            provider_token: providerToken,
+            provider_token: tokenData.access_token,
             limit: 50,
             after: afterCursor,
           },
@@ -134,7 +151,7 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [session, afterCursor, isLoading]);
+  }, [session, user, afterCursor, isLoading]);
 
   return {
     photos,
