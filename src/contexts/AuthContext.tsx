@@ -62,7 +62,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithFacebook = async () => {
     // Custom Facebook OAuth flow - redirect to Facebook directly
-    const FACEBOOK_APP_ID = "680938527683498"; // Your Facebook App ID
+    const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID;
+    
+    if (!FACEBOOK_APP_ID) {
+      console.error("Facebook App ID not configured");
+      return { error: new Error("Facebook login is not configured") };
+    }
+    
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
     const scope = encodeURIComponent("email,public_profile,user_photos,user_videos");
     

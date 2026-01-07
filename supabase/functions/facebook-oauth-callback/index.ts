@@ -1,22 +1,109 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.86.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+// Get allowed origins from environment or use defaults
+const getAllowedOrigins = (): string[] => {
+  const origins = Deno.env.get("ALLOWED_ORIGINS");
+  if (origins) {
+    return origins.split(",").map(o => o.trim());
+  }
+  // Default to common development and production origins
+  return [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://lovable.dev",
+  ];
+};
+
+const getCorsHeaders = (req: Request): Record<string, string> => {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigins = getAllowedOrigins();
+  
+  // Check if origin matches any allowed origin or pattern
+  const isAllowed = allowedOrigins.some(allowed => {
+    if (allowed.includes("*")) {
+      // Handle wildcard patterns like *.lovable.app
+      const pattern = allowed.replace(/\*/g, ".*");
+      return new RegExp(`^${pattern}$`).test(origin);
+    }
+    return origin === allowed;
+  });
+
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+};
+
+// Input validation
+const validateInput = (code: unknown, redirectUri: unknown): { valid: boolean; error?: string } => {
+  // Validate code exists and is a string with reasonable length
+  if (!code || typeof code !== "string") {
+    return { valid: false, error: "Authorization code is required" };
+  }
+  
+  if (code.length < 10 || code.length > 2000) {
+    return { valid: false, error: "Invalid authorization code format" };
+  }
+  
+  // Validate redirect_uri
+  if (!redirectUri || typeof redirectUri !== "string") {
+    return { valid: false, error: "Redirect URI is required" };
+  }
+  
+  if (redirectUri.length > 2000) {
+    return { valid: false, error: "Redirect URI too long" };
+  }
+  
+  // Validate redirect_uri is a valid URL
+  try {
+    const url = new URL(redirectUri);
+    // Only allow https in production, http for localhost
+    if (url.protocol !== "https:" && !url.hostname.includes("localhost")) {
+      return { valid: false, error: "Redirect URI must use HTTPS" };
+    }
+  } catch {
+    return { valid: false, error: "Invalid redirect URI format" };
+  }
+  
+  return { valid: true };
 };
 
 serve(async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { code, redirect_uri } = await req.json();
+  // Only allow POST method
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
-    if (!code) {
+  try {
+    // Parse and validate request body
+    let body: { code?: unknown; redirect_uri?: unknown };
+    try {
+      body = await req.json();
+    } catch {
       return new Response(
-        JSON.stringify({ error: "Authorization code is required" }),
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { code, redirect_uri } = body;
+
+    // Validate inputs
+    const validation = validateInput(code, redirect_uri);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -38,8 +125,8 @@ serve(async (req: Request): Promise<Response> => {
     const tokenUrl = new URL("https://graph.facebook.com/v18.0/oauth/access_token");
     tokenUrl.searchParams.set("client_id", FACEBOOK_APP_ID);
     tokenUrl.searchParams.set("client_secret", FACEBOOK_APP_SECRET);
-    tokenUrl.searchParams.set("redirect_uri", redirect_uri);
-    tokenUrl.searchParams.set("code", code);
+    tokenUrl.searchParams.set("redirect_uri", redirect_uri as string);
+    tokenUrl.searchParams.set("code", code as string);
 
     console.log("Exchanging code for access token...");
     const tokenResponse = await fetch(tokenUrl.toString());
@@ -135,12 +222,12 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Generate a session for the user
-    // We'll create a magic link token that the client can use
+    const redirectUriStr = redirect_uri as string;
     const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email,
       options: {
-        redirectTo: redirect_uri.split("?")[0].replace("/auth/callback", "/"),
+        redirectTo: redirectUriStr.split("?")[0].replace("/auth/callback", "/"),
       },
     });
 
@@ -175,7 +262,7 @@ serve(async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("Error in facebook-oauth-callback:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
