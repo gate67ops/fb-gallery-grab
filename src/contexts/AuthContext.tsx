@@ -62,15 +62,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithFacebook = async () => {
     // Custom Facebook OAuth flow - redirect to Facebook directly
-    // Facebook App ID is a public identifier (not a secret), safe to include as fallback.
-    // Some environments provide the value with quotes; Facebook requires a numeric client_id.
-    const rawAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
-    const FACEBOOK_APP_ID = (rawAppId?.match(/\d+/g)?.join("") ?? "") || "844873494946610";
+    // Facebook App ID is a public identifier (not a secret).
+    // Some environments inject the value with extra characters; Facebook requires a numeric client_id.
+    const rawAppId = import.meta.env.VITE_FACEBOOK_APP_ID as string | undefined;
+    const candidateAppId = (rawAppId ?? "").replace(/\D/g, "");
+    const FACEBOOK_APP_ID =
+      candidateAppId.length >= 10 && candidateAppId.length <= 20
+        ? candidateAppId
+        : "844873494946610";
 
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
     const scope = encodeURIComponent("email,public_profile,user_photos,user_videos");
 
     const facebookAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+
+    console.info("[Facebook OAuth] client_id=", FACEBOOK_APP_ID);
+    console.info("[Facebook OAuth] url=", facebookAuthUrl);
 
     window.location.href = facebookAuthUrl;
     return { error: null };
