@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Facebook App ID is a public identifier (not a secret), safe to include as fallback.
     // Some environments provide the value with quotes; Facebook requires a numeric client_id.
     const rawAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
-    const FACEBOOK_APP_ID = (rawAppId?.match(/\d+/g)?.join("") ?? "") || "680938527683498";
+    const FACEBOOK_APP_ID = (rawAppId?.match(/\d+/g)?.join("") ?? "") || "844873494946610";
 
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
     const scope = encodeURIComponent("email,public_profile,user_photos,user_videos");
