@@ -9,6 +9,7 @@ import { usePhotoSelection } from "@/hooks/usePhotoSelection";
 import { usePhotoDownload } from "@/hooks/usePhotoDownload";
 import { useFacebookPhotos } from "@/hooks/useFacebookPhotos";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Photo } from "@/types/photo";
 import { Loader2, Facebook, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, session, isLoading: authLoading, signInWithFacebook } = useAuth();
   const [useFacebookSource, setUseFacebookSource] = useState(false);
+  const [hasFacebookToken, setHasFacebookToken] = useState(false);
   
   const {
     photos: facebookPhotos,
@@ -53,13 +55,34 @@ const Index = () => {
     }
   }, [user, authLoading, navigate]);
 
+  // Check if user has a Facebook token stored in database
   useEffect(() => {
-    // If user is connected via Facebook and has provider token, fetch photos
-    if (isFacebookUser && session?.provider_token) {
+    const checkFacebookToken = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from("facebook_tokens")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (data) {
+        setHasFacebookToken(true);
+        setUseFacebookSource(true);
+        fetchPhotos();
+      }
+    };
+    
+    checkFacebookToken();
+  }, [user]);
+
+  // Also fetch if user just logged in with provider_token
+  useEffect(() => {
+    if (isFacebookUser && session?.provider_token && !hasFacebookToken) {
       setUseFacebookSource(true);
       fetchPhotos();
     }
-  }, [isFacebookUser, session?.provider_token]);
+  }, [isFacebookUser, session?.provider_token, hasFacebookToken]);
 
   const handleDownload = () => {
     const selectedPhotosList = getSelectedPhotos();
@@ -92,7 +115,7 @@ const Index = () => {
 
       <main className="pb-24">
         {/* Facebook connection prompt for non-Facebook users */}
-        {!isFacebookUser && (
+        {!isFacebookUser && !hasFacebookToken && (
           <div className="mx-4 my-4 rounded-lg border border-border bg-card p-4 md:mx-6">
             <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-left">
               <Facebook className="h-8 w-8 text-[#1877F2]" />
@@ -129,7 +152,7 @@ const Index = () => {
         )}
 
         {/* Refresh button for Facebook users */}
-        {isFacebookUser && !needsReauth && (
+        {(isFacebookUser || hasFacebookToken) && !needsReauth && (
           <div className="flex justify-end px-4 py-2 md:px-6">
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={fbLoading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${fbLoading ? "animate-spin" : ""}`} />
