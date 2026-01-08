@@ -58,8 +58,8 @@ export const usePhotoDownload = () => {
             const response = await fetch(url);
             const blob = await response.blob();
             folder?.file(`${item.type}-${index + 1}.${ext}`, blob);
-          } catch (error) {
-            console.error(`Failed to download ${item.type} ${item.id}:`, error);
+          } catch {
+            // Silent fail for individual items in batch download
           }
         });
 
@@ -73,8 +73,7 @@ export const usePhotoDownload = () => {
           description: `${itemLabel} downloaded.`,
         });
       }
-    } catch (error) {
-      console.error("Download failed:", error);
+    } catch {
       toast({
         title: "Download failed",
         description: "There was an error downloading your media.",
