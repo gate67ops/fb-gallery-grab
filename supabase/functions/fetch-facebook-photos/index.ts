@@ -118,37 +118,43 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get the Facebook provider token from user's identities
-    const facebookIdentity = user.identities?.find(
-      (identity) => identity.provider === "facebook"
-    );
+    // Get the Facebook token from our facebook_tokens table
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("facebook_tokens")
+      .select("access_token, expires_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (!facebookIdentity) {
-      console.error("User is not connected to Facebook");
+    if (tokenError) {
+      console.error("Error fetching Facebook token:", tokenError);
       return new Response(
-        JSON.stringify({ error: "User is not connected to Facebook. Please sign in with Facebook." }),
+        JSON.stringify({ error: "Failed to retrieve Facebook token" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!tokenData) {
+      console.error("User has no Facebook token stored");
+      return new Response(
+        JSON.stringify({ error: "User is not connected to Facebook. Please sign in with Facebook.", needs_reauth: true }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get the session to access the provider token
-    // Note: The provider_token is available in the session after OAuth sign-in
-    const { data: sessionData } = await supabase.auth.admin.getUserById(user.id);
-    
-    // We need to get the provider token from the request body since it's not stored in Supabase
-    const body = await req.json().catch(() => ({}));
-    const providerToken = body.provider_token;
-
-    if (!providerToken) {
-      console.error("No Facebook provider token available");
+    // Check if token is expired
+    if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+      console.error("Facebook token has expired");
       return new Response(
         JSON.stringify({ 
-          error: "Facebook access token not available. Please sign in with Facebook again.",
+          error: "Facebook session expired. Please sign in with Facebook again.",
           needs_reauth: true
         }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const providerToken = tokenData.access_token;
+    const body = await req.json().catch(() => ({}));
 
     // Validate provider token format (basic validation)
     if (typeof providerToken !== "string" || providerToken.length < 10 || providerToken.length > 500) {
