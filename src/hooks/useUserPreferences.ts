@@ -41,7 +41,7 @@ export const useUserPreferences = () => {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      console.error("Error fetching preferences:", error);
+      // Preference fetch error - fail silently for UX
     }
 
     if (data) {
@@ -63,7 +63,6 @@ export const useUserPreferences = () => {
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error updating preferences:", error);
       // Revert on error
       setPreferences(currentPrefs);
       return false;

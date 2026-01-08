@@ -69,7 +69,6 @@ const AuthCallback = () => {
 
         navigate("/");
       } catch (err) {
-        console.error("Auth callback error:", err);
         const message = err instanceof Error ? err.message : "Authentication failed";
         setError(message);
         toast({
