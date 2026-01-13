@@ -1,4 +1,5 @@
-import { Settings, Grid, AlignLeft, LogOut, X } from "lucide-react";
+import { Settings, Grid, AlignLeft, LogOut, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -99,6 +100,19 @@ export const SettingsPanel = () => {
               checked={preferences.show_captions}
               onCheckedChange={handleShowCaptionsChange}
             />
+          </div>
+
+          {/* Privacy Policy */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              <Label>Privacy Policy</Label>
+            </div>
+            <Link to="/privacy">
+              <Button variant="ghost" size="sm">
+                View
+              </Button>
+            </Link>
           </div>
 
           {/* Account section */}
