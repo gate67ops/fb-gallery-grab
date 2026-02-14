@@ -115,6 +115,19 @@ export const SettingsPanel = () => {
             </Link>
           </div>
 
+          {/* Terms of Service */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              <Label>Terms of Service</Label>
+            </div>
+            <Link to="/terms">
+              <Button variant="ghost" size="sm">
+                View
+              </Button>
+            </Link>
+          </div>
+
           {/* Account section */}
           <div className="border-t border-border pt-6">
             <p className="mb-4 text-sm text-muted-foreground">
