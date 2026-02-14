@@ -1,26 +1,16 @@
 
 
-## Add Contact Email and Security Vulnerability Reporting
+## Add Terms of Service Links
 
 ### Changes
 
-**1. Privacy Policy (`src/pages/Privacy.tsx`)**
-- Update the "Contact Us" section (Section 7) to include the email address `bill.chapin@gate67consulting.com`
+**1. Settings Panel (`src/components/SettingsPanel.tsx`)**
+- Add a "Terms of Service" row below the existing "Privacy Policy" row, with the same layout (Shield icon, label, "View" button linking to `/terms`)
 
-**2. Terms of Service (`src/pages/Terms.tsx`)**
-- Add a contact email `bill.chapin@gate67consulting.com` to a "Contact Us" section
-- Add a new section for **Security Vulnerability Reporting** directing users to report vulnerabilities to `wyatt.allinger@gate67consulting.com`
+**2. Auth Page (`src/pages/Auth.tsx`)**
+- Update the footer text from just "Privacy Policy" to include "Terms of Service" as well, e.g.: "By using this app, you agree to our Privacy Policy and Terms of Service"
 
 ### Technical Details
 
-Both changes are simple text additions to existing page components. No database, backend, or routing changes needed.
-
-**Privacy Policy - Updated Section 7:**
-> If you have any questions about this Privacy Policy, please contact us at bill.chapin@gate67consulting.com.
-
-**Terms of Service - New Section 9 (Security Vulnerabilities):**
-> If you discover a potential security vulnerability in this application, please report it responsibly by contacting us at wyatt.allinger@gate67consulting.com. We take all reports seriously and will respond promptly.
-
-**Terms of Service - New Section 10 (Contact Us):**
-> If you have any questions about these Terms of Service, please contact us at bill.chapin@gate67consulting.com.
+Both are small UI-only changes -- adding a `<Link>` to `/terms` in two existing components. No new dependencies, routes, or backend changes needed.
 
