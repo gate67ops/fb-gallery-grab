@@ -16,8 +16,9 @@ export type Database = {
     Tables: {
       facebook_tokens: {
         Row: {
-          access_token: string
+          access_token: string | null
           created_at: string
+          encrypted_access_token: string | null
           expires_at: string | null
           facebook_user_id: string
           id: string
@@ -25,8 +26,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          access_token: string
+          access_token?: string | null
           created_at?: string
+          encrypted_access_token?: string | null
           expires_at?: string | null
           facebook_user_id: string
           id?: string
@@ -34,8 +36,9 @@ export type Database = {
           user_id: string
         }
         Update: {
-          access_token?: string
+          access_token?: string | null
           created_at?: string
+          encrypted_access_token?: string | null
           expires_at?: string | null
           facebook_user_id?: string
           id?: string
@@ -79,7 +82,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_facebook_token: {
+        Args: { p_encryption_key: string; p_user_id: string }
+        Returns: {
+          access_token: string
+          expires_at: string
+        }[]
+      }
+      store_facebook_token: {
+        Args: {
+          p_access_token: string
+          p_encryption_key: string
+          p_expires_at?: string
+          p_facebook_user_id?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
