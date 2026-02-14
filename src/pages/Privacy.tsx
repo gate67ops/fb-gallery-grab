@@ -78,7 +78,10 @@ const Privacy = () => {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">7. Contact Us</h2>
             <p>
-              If you have any questions about this Privacy Policy, please contact us through the application.
+              If you have any questions about this Privacy Policy, please contact us at{" "}
+              <a href="mailto:bill.chapin@gate67consulting.com" className="text-primary hover:underline">
+                bill.chapin@gate67consulting.com
+              </a>.
             </p>
           </section>
         </div>
