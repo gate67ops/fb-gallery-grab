@@ -118,12 +118,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get the Facebook token from our facebook_tokens table
-    const { data: tokenData, error: tokenError } = await supabase
-      .from("facebook_tokens")
-      .select("access_token, expires_at")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Get the decrypted Facebook token via RPC
+    const ENCRYPTION_KEY = Deno.env.get("TOKEN_ENCRYPTION_KEY");
+    if (!ENCRYPTION_KEY) {
+      console.error("TOKEN_ENCRYPTION_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "Server encryption not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: tokenRows, error: tokenError } = await supabase.rpc("get_facebook_token", {
+      p_user_id: user.id,
+      p_encryption_key: ENCRYPTION_KEY,
+    });
 
     if (tokenError) {
       console.error("Error fetching Facebook token:", tokenError);
@@ -132,6 +140,8 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const tokenData = tokenRows?.[0];
 
     if (!tokenData) {
       console.error("User has no Facebook token stored");

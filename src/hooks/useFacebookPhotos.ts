@@ -34,33 +34,11 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
     setNeedsReauth(false);
 
     try {
-      // First, get the Facebook token from our database
-      const { data: tokenData, error: tokenError } = await supabase
-        .from("facebook_tokens")
-        .select("access_token, expires_at")
-        .eq("user_id", user.id)
-        .single();
-
-      if (tokenError || !tokenData) {
-        setNeedsReauth(true);
-        setError("Please connect your Facebook account to access your photos");
-        return;
-      }
-
-      // Check if token is expired
-      if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
-        setNeedsReauth(true);
-        setError("Your Facebook session has expired. Please sign in again.");
-        return;
-      }
-
+      // Token retrieval is now handled server-side in the edge function
       const { data, error: fnError } = await supabase.functions.invoke(
         "fetch-facebook-photos",
         {
-          body: {
-            provider_token: tokenData.access_token,
-            limit: 50,
-          },
+          body: { limit: 50 },
         }
       );
 
@@ -104,23 +82,10 @@ export const useFacebookPhotos = (): UseFacebookPhotosReturn => {
     setIsLoading(true);
 
     try {
-      // Get the Facebook token from our database
-      const { data: tokenData, error: tokenError } = await supabase
-        .from("facebook_tokens")
-        .select("access_token")
-        .eq("user_id", user.id)
-        .single();
-
-      if (tokenError || !tokenData) {
-        setNeedsReauth(true);
-        return;
-      }
-
       const { data, error: fnError } = await supabase.functions.invoke(
         "fetch-facebook-photos",
         {
           body: {
-            provider_token: tokenData.access_token,
             limit: 50,
             after: afterCursor,
           },

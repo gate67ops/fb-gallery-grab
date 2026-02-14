@@ -200,22 +200,27 @@ serve(async (req: Request): Promise<Response> => {
       console.log("Created new user:", userId);
     }
 
-    // Store/update Facebook token
+    // Store/update Facebook token (encrypted at rest)
     const expiresAt = expiresIn 
       ? new Date(Date.now() + expiresIn * 1000).toISOString()
       : null;
 
-    const { error: tokenError } = await supabaseAdmin
-      .from("facebook_tokens")
-      .upsert({
-        user_id: userId,
-        access_token: accessToken,
-        expires_at: expiresAt,
-        facebook_user_id: fbUser.id,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: "user_id",
-      });
+    const ENCRYPTION_KEY = Deno.env.get("TOKEN_ENCRYPTION_KEY");
+    if (!ENCRYPTION_KEY) {
+      console.error("TOKEN_ENCRYPTION_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "Server encryption not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { error: tokenError } = await supabaseAdmin.rpc("store_facebook_token", {
+      p_user_id: userId,
+      p_access_token: accessToken,
+      p_encryption_key: ENCRYPTION_KEY,
+      p_expires_at: expiresAt,
+      p_facebook_user_id: fbUser.id,
+    });
 
     if (tokenError) {
       console.error("Error storing token:", tokenError);
