@@ -88,6 +88,27 @@ const Terms = () => {
               users or the service.
             </p>
           </section>
+
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold text-foreground">9. Security Vulnerability Reporting</h2>
+            <p>
+              If you discover a potential security vulnerability in this application, please report it 
+              responsibly by contacting us at{" "}
+              <a href="mailto:wyatt.allinger@gate67consulting.com" className="text-primary hover:underline">
+                wyatt.allinger@gate67consulting.com
+              </a>. We take all reports seriously and will respond promptly.
+            </p>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold text-foreground">10. Contact Us</h2>
+            <p>
+              If you have any questions about these Terms of Service, please contact us at{" "}
+              <a href="mailto:bill.chapin@gate67consulting.com" className="text-primary hover:underline">
+                bill.chapin@gate67consulting.com
+              </a>.
+            </p>
+          </section>
         </div>
       </div>
     </div>
