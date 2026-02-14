@@ -2,56 +2,49 @@
 
 ## Encrypt Facebook OAuth Tokens at Rest
 
-### Problem
-Facebook access tokens are stored as plaintext in the `facebook_tokens.access_token` column. If the database were compromised, these tokens would be immediately usable.
+### Overview
+Facebook access tokens are currently stored as plaintext in the database. This plan adds symmetric encryption using PostgreSQL's `pgcrypto` extension so tokens are encrypted at rest and only decrypted server-side in backend functions.
 
-### Solution
-Use PostgreSQL's `pgcrypto` extension with symmetric encryption (`pgp_sym_encrypt` / `pgp_sym_decrypt`) to encrypt tokens before storage and decrypt them only when needed in edge functions.
+### Step-by-Step
 
-### Changes
+**Step 1: Add the `TOKEN_ENCRYPTION_KEY` secret**
+- Request a new secret from you via the secrets tool
+- You will paste in a strong passphrase (any random string works)
 
-**1. Database Migration**
-- Enable the `pgcrypto` extension
-- Add a new `encrypted_access_token` column (bytea) to `facebook_tokens`
-- Migrate any existing plaintext tokens to encrypted form using a server-side key
-- Drop the old `access_token` (text) column after migration
+**Step 2: Database migration**
+- Enable `pgcrypto` extension
+- Add `encrypted_access_token` (bytea) column to `facebook_tokens`
+- Create two database functions:
+  - `store_facebook_token(...)` -- encrypts the token and upserts
+  - `get_facebook_token(p_user_id, p_encryption_key)` -- decrypts and returns the token + expiry
+- Migrate any existing plaintext tokens (encrypted with a temporary key that will be replaced on next login)
+- Make `access_token` column nullable (keep for migration safety, drop later)
 
-**2. Add Encryption Key Secret**
-- Generate a strong encryption passphrase and store it as a backend secret (`TOKEN_ENCRYPTION_KEY`)
-- This key will only be accessible to edge functions, never exposed to the client
+**Step 3: Update `facebook-oauth-callback` edge function**
+- After receiving the Facebook access token, call `store_facebook_token` RPC with the encryption key from the `TOKEN_ENCRYPTION_KEY` secret
+- Remove the direct `upsert` into `facebook_tokens`
 
-**3. Update `facebook-oauth-callback` Edge Function**
-- After receiving the Facebook access token, encrypt it before inserting into the database:
-  ```
-  pgp_sym_encrypt(token, encryption_key)
-  ```
-- Use a Supabase RPC function to handle the encryption server-side
+**Step 4: Update `fetch-facebook-photos` edge function**
+- Call `get_facebook_token` RPC to retrieve the decrypted token instead of reading plaintext from the table
+- Remove the direct `select` from `facebook_tokens`
 
-**4. Update `fetch-facebook-photos` Edge Function**
-- When reading the token, decrypt it before using it to call the Facebook API
-- Use a Supabase RPC function to handle the decryption server-side
-
-**5. Create Two Database Functions (RPC)**
-- `store_facebook_token(p_user_id, p_access_token, p_expires_at, p_facebook_user_id)` -- encrypts and upserts
-- `get_facebook_token(p_user_id)` -- decrypts and returns the token
-- Both functions will be `SECURITY DEFINER` with `search_path` locked to `public`, and will read the encryption key from a Vault secret or a dedicated config
+**Step 5: Update frontend hook (`useFacebookPhotos.ts`)**
+- Remove direct database reads of `facebook_tokens` from the client
+- The edge function already has the user's JWT and will fetch the token server-side
+- Simplify `fetchPhotos` and `loadMore` to just call the edge function without passing `provider_token`
 
 ### Technical Details
 
-**Encryption approach:** Use `pgp_sym_encrypt`/`pgp_sym_decrypt` from `pgcrypto`. The encryption key is stored as a backend secret (`TOKEN_ENCRYPTION_KEY`) and passed to the RPC functions as a parameter from edge functions (which have access to secrets). This avoids storing the key in the database itself.
+**Encryption:** `pgp_sym_encrypt(token, key)` / `pgp_sym_decrypt(encrypted, key)` from `pgcrypto`. The key is stored as a backend secret and passed to RPC functions from edge functions only.
 
-**RPC functions** ensure the plaintext token never travels through the client -- edge functions call them with the service role key.
+**RPC functions** are `SECURITY DEFINER` with `search_path` locked to `public`. They accept the encryption key as a parameter (from edge functions using the service role key), so the key never lives in the database.
 
-**Migration path:**
-1. Add `encrypted_access_token` column
-2. Encrypt existing tokens via a one-time migration using a default key
-3. Drop the plaintext `access_token` column
-4. Update both edge functions to use the new RPC functions
+**Security improvement:** The plaintext token is no longer readable from the client or the database. Only the backend functions can decrypt it, and only when called with a valid user JWT.
 
-### Files Modified
-- `supabase/functions/facebook-oauth-callback/index.ts` -- use `store_facebook_token` RPC instead of direct upsert
-- `supabase/functions/fetch-facebook-photos/index.ts` -- use `get_facebook_token` RPC instead of direct select
-- `src/hooks/useFacebookPhotos.ts` -- remove direct token reads (delegate entirely to edge function)
-- New database migration for pgcrypto, new columns, and RPC functions
+**Files changed:**
+- New database migration (pgcrypto, column, RPC functions)
+- `supabase/functions/facebook-oauth-callback/index.ts`
+- `supabase/functions/fetch-facebook-photos/index.ts`
+- `src/hooks/useFacebookPhotos.ts`
 - New secret: `TOKEN_ENCRYPTION_KEY`
 
