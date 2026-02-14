@@ -353,6 +353,10 @@ const Auth = () => {
             By using this app, you agree to our{" "}
             <a href="/privacy" className="text-primary hover:underline">
               Privacy Policy
+            </a>{" "}
+            and{" "}
+            <a href="/terms" className="text-primary hover:underline">
+              Terms of Service
             </a>
           </p>
         </CardContent>
